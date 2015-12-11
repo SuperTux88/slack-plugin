@@ -36,6 +36,9 @@
         <f:entry title="Include Test Summary">
             <f:checkbox name="includeTestSummary" value="true" checked="${instance.includeTestSummary()}"/>
         </f:entry>
+        <f:entry title="Include Release Version">
+            <f:checkbox name="includeReleaseVersion" value="true" checked="${instance.includeReleaseVersion()}"/>
+        </f:entry>
 
         <f:optionalBlock name="includeCustomMessage" title="Include Custom Message" checked="${instance.includeCustomMessage()}">
             <f:entry title="Custom Message" help="${rootURL}/plugin/slack/help-projectConfig-slackCustomMessage.html">

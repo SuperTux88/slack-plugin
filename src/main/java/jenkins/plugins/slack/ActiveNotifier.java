@@ -70,7 +70,7 @@ public class ActiveNotifier implements FineGrainedNotifier {
         if (changes != null) {
             notifyStart(build, changes);
         } else {
-            notifyStart(build, getBuildStatusMessage(build, false, notifier.includeCustomMessage()));
+            notifyStart(build, getBuildStatusMessage(build, false));
         }
     }
 
@@ -108,8 +108,7 @@ public class ActiveNotifier implements FineGrainedNotifier {
                     && notifier.getNotifyBackToNormal())
                 || (result == Result.SUCCESS && notifier.getNotifySuccess())
                 || (result == Result.UNSTABLE && notifier.getNotifyUnstable())) {
-            getSlack(r).publish(getBuildStatusMessage(r, notifier.includeTestSummary(),
-                    notifier.includeCustomMessage()), getBuildColor(r));
+            getSlack(r).publish(getBuildStatusMessage(r, notifier.includeTestSummary()), getBuildColor(r));
             if (notifier.getCommitInfoChoice().showAnything()) {
                 getSlack(r).publish(getCommitList(r), getBuildColor(r));
             }
@@ -200,7 +199,7 @@ public class ActiveNotifier implements FineGrainedNotifier {
         }
     }
 
-    String getBuildStatusMessage(AbstractBuild r, boolean includeTestSummary, boolean includeCustomMessage) {
+    String getBuildStatusMessage(AbstractBuild r, boolean includeTestSummary) {
         MessageBuilder message = new MessageBuilder(notifier, r);
         message.appendStatusMessage();
         message.appendDuration();
@@ -208,7 +207,10 @@ public class ActiveNotifier implements FineGrainedNotifier {
         if (includeTestSummary) {
             message.appendTestSummary();
         }
-        if (includeCustomMessage) {
+        if (notifier.includeReleaseVersion()) {
+            message.appendReleaseVersion();
+        }
+        if (notifier.includeCustomMessage()) {
             message.appendCustomMessage();
         }
         return message.toString();
@@ -356,21 +358,32 @@ public class ActiveNotifier implements FineGrainedNotifier {
             return this;
         }
 
+        public MessageBuilder appendReleaseVersion() {
+            final String releaseVersion = getEnvVars().get("MVN_RELEASE_VERSION");
+            if (releaseVersion != null) {
+                message.append("\nRelease Version: ").append(releaseVersion);
+            }
+            return this;
+        }
+
         public MessageBuilder appendCustomMessage() {
             String customMessage = notifier.getCustomMessage();
-            EnvVars envVars = new EnvVars();
+            message.append("\n");
+            message.append(getEnvVars().expand(customMessage));
+            return this;
+        }
+
+        private EnvVars getEnvVars() {
             try {
-                envVars = build.getEnvironment(new LogTaskListener(logger, INFO));
+                return build.getEnvironment(new LogTaskListener(logger, INFO));
             } catch (IOException e) {
                 logger.log(SEVERE, e.getMessage(), e);
             } catch (InterruptedException e) {
                 logger.log(SEVERE, e.getMessage(), e);
             }
-            message.append("\n");
-            message.append(envVars.expand(customMessage));
-            return this;
+            return new EnvVars();
         }
-        
+
         private String createBackToNormalDurationString(){
             Run previousSuccessfulBuild = build.getPreviousSuccessfulBuild();
             long previousSuccessStartTime = previousSuccessfulBuild.getStartTimeInMillis();
